@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run MainClass",
+            "request": "launch",
+            "mainClass": "cn.campsg.practical.bubble.MainClass",
+            "projectName": "PRJ_BU2_JAVA_002",
+            "vmArgs": "--module-path \"C:/javafx-sdk-26/javafx-sdk-26.0.2/lib\" --add-modules javafx.controls,javafx.fxml"
+        }
+    ]
+}
