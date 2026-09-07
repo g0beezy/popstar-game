@@ -1,0 +1,19 @@
+# 编译输出
+bin/
+
+# Python 虚拟环境
+.venv/
+
+# VS Code 个人配置
+.vscode/
+
+# 教学资料（老师版权）
+*.pdf
+*.docx
+
+# JavaFX SDK 压缩包（太大，不入库）
+lib/javafx-sdk.zip
+
+# 系统文件
+Thumbs.db
+.DS_Store
