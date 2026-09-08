@@ -24,6 +24,12 @@ public class Star {
         this.position = new Position(0, 0);
         this.type = StarType.BLUE;
     }
+
+    @Override
+    public String toString() {
+        return position.toString() + ",type:" + type;
+    }
+
     public enum StarType {
         BLUE(0),
         GREEN(1),
@@ -53,4 +59,3 @@ public class Star {
 
     }
 }
-

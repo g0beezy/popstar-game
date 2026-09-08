@@ -3,6 +3,7 @@ package cn.campsg.practical.bubble.service;
 import cn.campsg.practical.bubble.entity.Position;
 import cn.campsg.practical.bubble.entity.Star;
 import cn.campsg.practical.bubble.entity.StarList;
+import cn.campsg.practical.bubble.entity.MovedStar;
 import java.util.Random;
 /**
  * 
@@ -76,7 +77,32 @@ private void lookupByPath(Star base, StarList currentStarList, StarList clearedS
 
 @Override
 public StarList getYMovedStars(StarList clearStars, StarList currentStarList) {
-    return null;   // 空实现，以后再做移动功能
+        StarList movedStar = new StarList();
+        for(int i = 0;i<currentStarList.size();i++){
+        Star s = currentStarList.get(i);
+        if(s == null){
+            continue;
+        }
+        int row = s.getPosition().getRow();
+        int col = s.getPosition().getColumn();
+        int emptycount = 0;
+        for(int r = row +1;r< MAX_ROW_SIZE;r++){
+            if(currentStarList.getStar(r, col) == null){
+                emptycount ++;
+            }
+
+        }
+        
+        if(emptycount > 0){
+           Position newPos = new Position(row + emptycount, col);
+           Position oldPos = s.getPosition();
+           movedStar.add(new MovedStar(newPos, s.getType(),oldPos));
+
+    }
+    
+   }
+   return movedStar;
+     // 空实现，以后再做移动功能
 }
 
 /**

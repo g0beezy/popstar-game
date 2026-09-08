@@ -6,10 +6,13 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import cn.campsg.practical.bubble.entity.MovedStar;
 import cn.campsg.practical.bubble.entity.Star;
 import cn.campsg.practical.bubble.entity.StarList;
 import cn.campsg.practical.bubble.service.StarService;
 import cn.campsg.practical.bubble.service.StarServiceImpl;
+import javafx.animation.TranslateTransition;
+import javafx.util.Duration;
 
 /**
  * 泡泡糖窗体类，用于显示泡泡糖阵列、处理泡泡糖点击事件与动画
@@ -25,6 +28,9 @@ public class MainForm extends Application {
 	
 	/** 窗体中显示泡泡糖的区域 **/
 	private AnchorPane mStarForm = null;
+
+	/** 正在播放的移动动画数量，>0 时禁止点击，防止动画期间数据错位 **/
+	private int mAnimatingCount = 0;
 
 	public static void show(String[] args) {
 		launch(args);
@@ -125,7 +131,10 @@ public class MainForm extends Application {
 					starFrame.getStyleClass().add("purple_star");
 					break;
 				}
-				starFrame.setOnMouseClicked(event -> {
+starFrame.setOnMouseClicked(event -> {
+    // 动画播放期间禁止点击，防止界面与数据错位
+    if (mAnimatingCount > 0) return;
+
     String data = (String) starFrame.getUserData();
     String[] parts = data.split(";");
     int r = Integer.parseInt(parts[0]);
@@ -144,6 +153,44 @@ public class MainForm extends Application {
         int sc = s.getPosition().getColumn();
         mStarForm.getChildren().remove(mStarForm.lookup("#s" + sr + sc));
         mCurretStars.removeStar(sr, sc);
+    }
+
+    // 计算待垂直移动的泡泡糖并播放下落动画
+    StarList movedStars = service.getYMovedStars(cleared, mCurretStars);
+    mAnimatingCount = movedStars.size();
+    for (int k = 0; k < movedStars.size(); k++) {
+        MovedStar ms = (MovedStar) movedStars.get(k);
+        int oldR = ms.getUnmovedPosition().getRow();
+        int oldC = ms.getUnmovedPosition().getColumn();
+        final int newR = ms.getPosition().getRow();
+        final int newC = ms.getPosition().getColumn();
+
+        // 更新数据模型中星星的位置
+        Star starData = mCurretStars.getStar(oldR, oldC);
+        if (starData != null) {
+            starData.setPosition(ms.getPosition());
+        }
+
+        // 找到界面上对应的Label
+        Label lbl = (Label) mStarForm.lookup("#s" + oldR + oldC);
+        if (lbl == null) {
+            mAnimatingCount--;
+            continue;
+        }
+        // 动画开始前就更新ID和userData，与数据模型保持同步
+        lbl.setId("s" + newR + newC);
+        lbl.setUserData(newR + ";" + newC);
+
+        // 播放平移动画
+        TranslateTransition tt = new TranslateTransition(Duration.millis(200), lbl);
+        tt.setByY((newR - oldR) * 48);
+        tt.setOnFinished(e -> {
+            // 动画结束后落位：清掉位移量，更新真实坐标
+            lbl.setTranslateY(0);
+            lbl.setLayoutY(newR * 48);
+            mAnimatingCount--;
+        });
+        tt.play();
     }
 });
 	
