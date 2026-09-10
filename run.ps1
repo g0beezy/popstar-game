@@ -10,3 +10,4 @@ if ($LASTEXITCODE -eq 0) {
 } else {
     Write-Host "=== 编译失败，请检查上方错误信息 ===" -ForegroundColor Red
 }
+

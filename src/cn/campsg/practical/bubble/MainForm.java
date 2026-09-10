@@ -32,6 +32,9 @@ public class MainForm extends Application {
 	/** 正在播放的移动动画数量，>0 时禁止点击，防止动画期间数据错位 **/
 	private int mAnimatingCount = 0;
 
+	/** 星星对象 -> 界面Label 的映射，用对象引用关联，避免按坐标查找错位 **/
+	private java.util.Map<Star, Label> mStarLabels = new java.util.HashMap<>();
+
 	public static void show(String[] args) {
 		launch(args);
 	}
@@ -73,14 +76,16 @@ public class MainForm extends Application {
 		/** 环境包: 提供 **/
 		mStarForm = (AnchorPane) root.lookup("#game_pane");
 
-		// 创建消灭泡泡糖业务类
+		// 创建消灭泡泡糖业务类（接口类型接收，可切换实现类）
 		/** 环境包: 不提供，指导手册要求学员完成 **/
-		StarService starService =  new StarServiceImpl();
 		//任务03完成以下代码
+		//StarService starService = new StarServiceTester();
+        StarService starservice = new StarServiceImpl();
 
 		// 创建调用创建泡泡糖代码
 		/** 环境包: 不提供，指导手册要求学员完成 **/
-		mCurretStars = starService.createStars();
+		mCurretStars = starservice.createStars();
+		
 
 		// 循环遍历所有泡泡糖，将泡泡糖对象Star转化为界面显示控件Label
 		if(mCurretStars != null)
@@ -104,13 +109,16 @@ public class MainForm extends Application {
 				// 为泡泡糖显示控件Label设置唯一标识ID，ID规则为s+行号+列号（例如：s00,s01）
 				/** 环境包: 不提供，指导手册提供源代码并讲解代码含义 **/
 				starFrame.setId("s" + row + col);
-				// 将泡泡糖的坐标位置保存起来用于识别泡泡糖在界面中的位置。
-				/** 环境包: 不提供，指导手册提供源代码并讲解代码含义 **/
-				starFrame.setUserData(row + ";" + col);
+			// 将泡泡糖对象本身保存到Label，点击时直接取到该星星（不再用坐标字符串）
+			/** 环境包: 不提供，指导手册提供源代码并讲解代码含义 **/
+			starFrame.setUserData(star);
 				// 设置泡泡糖显示控件Label在界面的呈现坐标
 				/** 环境包: 不提供，指导手册提供源代码并讲解代码含义 **/
 				starFrame.setLayoutX(col * 48);
 				starFrame.setLayoutY(row * 48);
+
+				// 建立星星对象与Label的引用关联
+				mStarLabels.put(star, starFrame);
 	
 				// 设置泡泡糖显示控件Label显示外观
 				/** 环境包: 不提供，指导手册提供源代码并讲解代码含义 **/
@@ -135,51 +143,54 @@ starFrame.setOnMouseClicked(event -> {
     // 动画播放期间禁止点击，防止界面与数据错位
     if (mAnimatingCount > 0) return;
 
-    String data = (String) starFrame.getUserData();
-    String[] parts = data.split(";");
-    int r = Integer.parseInt(parts[0]);
-    int c = Integer.parseInt(parts[1]);
-
-    Star clicked = mCurretStars.getStar(r, c);
+    // 直接从 userData 拿星星对象，不再按坐标查找
+    Star clicked = (Star) starFrame.getUserData();
     if (clicked == null) return;
 
-    StarServiceImpl service = new StarServiceImpl();          // ← 改这里
+    StarServiceImpl service = new StarServiceImpl();
     StarList cleared = service.tobeClearedStars(clicked, mCurretStars);
     if (cleared.size() == 0) return;
 
-    for (int j = 0; j < cleared.size(); j++) {                // ← i 改 j
-        Star s = cleared.get(j);                              // ← i 改 j
+    for (int j = 0; j < cleared.size(); j++) {
+        Star s = cleared.get(j);
         int sr = s.getPosition().getRow();
         int sc = s.getPosition().getColumn();
-        mStarForm.getChildren().remove(mStarForm.lookup("#s" + sr + sc));
+        // 通过Map找到该星星对应的Label并移除
+        Label lbl = mStarLabels.remove(s);
+        if (lbl != null) {
+            mStarForm.getChildren().remove(lbl);
+        }
         mCurretStars.removeStar(sr, sc);
     }
 
     // 计算待垂直移动的泡泡糖并播放下落动画
     StarList movedStars = service.getYMovedStars(cleared, mCurretStars);
     mAnimatingCount = movedStars.size();
+
+    // 第一遍：先把每颗待移动星的数据对象找出来并配对，期间不改任何position
+    java.util.List<Star> movingData = new java.util.ArrayList<>();
+    java.util.List<Label> movingLbls = new java.util.ArrayList<>();
+    for (int k = 0; k < movedStars.size(); k++) {
+        MovedStar ms = (MovedStar) movedStars.get(k);
+        Star starData = mCurretStars.getStar(ms.getUnmovedPosition().getRow(),
+                                             ms.getUnmovedPosition().getColumn());
+        movingData.add(starData);
+        movingLbls.add(starData == null ? null : mStarLabels.get(starData));
+    }
+
+    // 第二遍：统一更新数据模型position并播放动画（此时查找已全部完成，不会污染）
     for (int k = 0; k < movedStars.size(); k++) {
         MovedStar ms = (MovedStar) movedStars.get(k);
         int oldR = ms.getUnmovedPosition().getRow();
-        int oldC = ms.getUnmovedPosition().getColumn();
         final int newR = ms.getPosition().getRow();
-        final int newC = ms.getPosition().getColumn();
 
-        // 更新数据模型中星星的位置
-        Star starData = mCurretStars.getStar(oldR, oldC);
-        if (starData != null) {
-            starData.setPosition(ms.getPosition());
-        }
-
-        // 找到界面上对应的Label
-        Label lbl = (Label) mStarForm.lookup("#s" + oldR + oldC);
-        if (lbl == null) {
+        final Star starData = movingData.get(k);
+        final Label lbl = movingLbls.get(k);
+        if (starData == null || lbl == null) {
             mAnimatingCount--;
             continue;
         }
-        // 动画开始前就更新ID和userData，与数据模型保持同步
-        lbl.setId("s" + newR + newC);
-        lbl.setUserData(newR + ";" + newC);
+        starData.setPosition(ms.getPosition());
 
         // 播放平移动画
         TranslateTransition tt = new TranslateTransition(Duration.millis(200), lbl);
